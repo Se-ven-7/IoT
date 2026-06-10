@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AGAP System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --text-muted: #6b7280;
+      --green: #3B6D11;
+      --green-bg: #EAF3DE;
+      --red: #A32D2D;
+      --red-bg: #FCEBEB;
+      --yellow: #BA7517;
+      --yellow-bg: #FAEEDA;
+      --font: 'Inter', sans-serif;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 700px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .card {
+      min-height: 340px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .leds {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding-top: 4px;
+    }
+
+    .led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+
+    .led.red   { background: #E24B4A; }
+    .led.yellow { background: #EF9F27; }
+    .led.green  { background: #639922; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem 1.5rem;
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .screen { display: none; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+    .screen.active { display: flex; }
+
+    .screen-icon { font-size: 3rem; margin-bottom: 8px; color: var(--text-muted); }
+    .screen-title { font-size: 1.5rem; font-weight: 600; color: var(--text); }
+    .screen-sub { font-size: 0.95rem; color: var(--text-muted); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .badge-success { background: var(--green-bg); color: var(--green); }
+    .badge-danger  { background: var(--red-bg);   color: var(--red); }
+
+    .avatar {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.75rem;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-name { font-size: 1.4rem; font-weight: 600; }
+    .user-id   { font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.03em; }
+
+    .divider { width: 100%; height: 1px; background: var(--border); margin: 8px 0; }
+
+    /* Form */
+    .form-field { width: 100%; text-align: left; margin-bottom: 10px; }
+    .form-field label { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 4px; }
+    .form-field input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 0.875rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-field input:focus { border-color: var(--text); }
+
+    .btn {
+      width: 100%;
+      padding: 9px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-family: var(--font);
+      margin-top: 4px;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--bg); }
+    .btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+    .btn-primary:hover { opacity: 0.85; background: var(--text); }
+
+    /* Env bar */
+    .env-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .env-cell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .env-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 4px; }
+    .env-value { font-size: 1rem; font-weight: 600; }
+
+    .footer { font-size: 0.65rem; color: var(--text-muted); text-align: center; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div>
+      <h1>AGAP System</h1>
+      <p>Automated Gatekeeping &amp; Perimeter Monitoring</p>
+    </div>
+    <div class="leds">
+      <div class="led red" id="led-r"></div>
+      <div class="led" id="led-y"></div>
+      <div class="led" id="led-g"></div>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <!-- IDLE -->
+    <div class="screen active" id="s-idle">
+      <div class="screen-icon">🛡</div>
+      <div class="screen-title">System ready</div>
+      <div class="screen-sub">Approach the scanner to begin</div>
+    </div>
+
+    <!-- SCAN -->
+    <div class="screen" id="s-scan">
+      <div class="screen-icon">📡</div>
+      <div class="screen-title">Scan your ID</div>
+      <div class="screen-sub">Hold your RFID card near the reader</div>
+    </div>
+
+    <!-- AUTHORIZED -->
+    <div class="screen" id="s-authorized">
+      <div class="avatar" id="user-avatar">👤</div>
+      <div class="user-name" id="user-name">—</div>
+      <div class="user-id" id="user-id">—</div>
+      <div class="badge badge-success" style="margin-top: 6px;">✓ Access granted</div>
+      <div class="screen-sub" style="margin-top: 4px;">Proceed to the sanitizer dispenser</div>
+    </div>
+
+    <!-- DENIED -->
+    <div class="screen" id="s-denied">
+      <div class="screen-icon" style="color: var(--red);">🚫</div>
+      <div class="screen-title">Access denied</div>
+      <div class="screen-sub">Card not recognized</div>
+      <div class="badge badge-danger" style="margin-top: 6px;">Unauthorized</div>
+      <div class="divider"></div>
+      <button class="btn" onclick="showScreen('manual')">Input manually instead</button>
+    </div>
+
+    <!-- MANUAL -->
+    <div class="screen" id="s-manual">
+      <div style="width:100%; text-align:left; margin-bottom: 8px;">
+        <div class="screen-title" style="text-align:left;">Manual entry</div>
+        <div class="screen-sub" style="text-align:left;">Fill in your details to proceed</div>
+      </div>
+      <div class="form-field">
+        <label>Full name</label>
+        <input type="text" id="f-name" placeholder="e.g. Juan Dela Cruz" />
+      </div>
+      <div class="form-field">
+        <label>ID number</label>
+        <input type="text" id="f-id" placeholder="e.g. 2021-00001" />
+      </div>
+      <div class="form-field">
+        <label>Purpose of visit</label>
+        <input type="text" id="f-purpose" placeholder="e.g. Consultation" />
+      </div>
+      <button class="btn btn-primary" onclick="submitManual()">Submit and proceed</button>
+    </div>
+
+  </div>
+
+  <div class="env-row">
+    <div class="env-cell">
+      <div class="env-label">Temperature</div>
+      <div class="env-value" id="env-temp">--°C</div>
+    </div>
+    <div class="env-cell">
+      <div class="env-label">Humidity</div>
+      <div class="env-value" id="env-humidity">--%</div>
+    </div>
+    <div class="env-cell">
+      <div class="env-label">Status</div>
+      <div class="env-value" style="font-size: 0.8rem; color: var(--green);" id="env-status">Online</div>
+    </div>
+  </div>
+
+  <div class="footer">AGAP &nbsp;·&nbsp; IoT Monitoring System</div>
+</div>
+
+<audio id="audio-authorized" src="./audio/authorized.mp3" preload="auto"></audio>
+<audio id="audio-denied"     src="./audio/denied.mp3"     preload="auto"></audio>
+
+<script>
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-' + name).classList.add('active');
+  }
+
+  function setLED(color) {
+    document.getElementById('led-r').className = 'led';
+    document.getElementById('led-y').className = 'led';
+    document.getElementById('led-g').className = 'led';
+    if (color) document.getElementById('led-' + color).classList.add(
+      color === 'r' ? 'red' : color === 'y' ? 'yellow' : 'green'
+    );
+  }
+
+  function showAuthorized(name, idNumber, photoUrl) {
+    document.getElementById('user-name').textContent = name;
+    document.getElementById('user-id').textContent = 'ID: ' + idNumber;
+    const av = document.getElementById('user-avatar');
+    av.innerHTML = photoUrl
+      ? `<img src="${photoUrl}" alt="User photo"/>`
+      : '👤';
+    showScreen('authorized');
+    setLED('g');
+    document.getElementById('audio-authorized').play().catch(() => {});
+  }
+
+  function submitManual() {
+    const name    = document.getElementById('f-name').value.trim();
+    const id      = document.getElementById('f-id').value.trim();
+    const purpose = document.getElementById('f-purpose').value.trim();
+    if (!name || !id || !purpose) { alert('Please fill in all fields.'); return; }
+
+    fetch('/manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, id_number: id, purpose })
+    }).then(() => showAuthorized(name, id, null))
+      .catch(() => showAuthorized(name, id, null));
+  }
+
+  // Socket.IO — uncomment when backend is ready
+  const socket = io();
+  socket.on('scan_prompt',  () => { showScreen('scan'); setLED('y'); });
+  socket.on('authorized',   data => showAuthorized(data.name, data.id_number, data.photo || null));
+  socket.on('denied',       () => { showScreen('denied'); setLED('r'); document.getElementById('audio-denied').play().catch(() => {}); });
+  socket.on('idle',         () => { showScreen('idle'); setLED('r'); });
+  socket.on('environment',  data => {
+    document.getElementById('env-temp').textContent    = data.temperature + '°C';
+    document.getElementById('env-humidity').textContent = data.humidity + '%';
+  });
+
+  showScreen('idle');
+  setLED('r');
+</script>
+</body>
+</html>
